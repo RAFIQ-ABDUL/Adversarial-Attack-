@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FGSM Attack Demo</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h2 { margin: 0; font-size: 2rem; color: var(--primary); }
+        .header p { color: var(--text-muted); margin-top: 0.5rem; }
+
+        .control-panel {
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 2rem;
+        }
+
+        .form-group { margin-bottom: 1.5rem; }
+        
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        input[type="file"] {
+            display: block;
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px dashed var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        input[type="range"] { flex-grow: 1; cursor: pointer; }
+        
+        .epsilon-value {
+            font-weight: bold;
+            color: var(--primary);
+            min-width: 40px;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: var(--text-muted); cursor: not-allowed; }
+
+        /* Results Section - Side by Side */
+        .results-container {
+            display: none; /* Hidden until attack runs */
+            width: 100%;
+            max-width: 1000px;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .status-banner {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .cards-wrapper {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .image-card {
+            background: var(--card-bg);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            flex: 1;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .image-card h3 { margin-top: 0; color: var(--text-main); }
+        
+        .image-preview {
+            width: 100%;
+            max-width: 250px;
+            height: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-bottom: 1rem;
+        }
+
+        .prediction-badge {
+            background-color: #f1f5f9;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            color: var(--primary);
+            border: 1px solid var(--border);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h2>FGSM Attack Demo</h2>
+        <p>Upload an image to test model robustness against adversarial perturbations.</p>
+    </div>
+
+    <div class="control-panel">
+        <div class="form-group">
+            <label for="imageInput">1. Upload Image:</label>
+            <input type="file" id="imageInput" accept="image/png, image/jpeg">
+        </div>
+
+        <div class="form-group">
+            <label for="epsilon">2. Set Epsilon (Attack Strength):</label>
+            <div class="slider-container">
+                <input type="range" id="epsilon" min="0" max="1" step="0.01" value="0.1" oninput="updateEpsilonDisplay()">
+                <span class="epsilon-value" id="epsilonDisplay">0.10</span>
+            </div>
+        </div>
+
+        <button id="attackBtn" onclick="runAttack()">Run Attack</button>
+    </div>
+
+    <div class="results-container" id="resultsSection">
+        <div class="status-banner" id="statusBanner"></div>
+        
+        <div class="cards-wrapper">
+            <div class="image-card">
+                <h3>Original Image</h3>
+                <img id="origImage" class="image-preview" src="" alt="Original Preview" style="display: none;"/>
+                <div class="prediction-badge" id="cleanPred">Waiting for prediction...</div>
+            </div>
+
+            <div class="image-card">
+                <h3>Adversarial Image</h3>
+                <img id="advImage" class="image-preview" src="" alt="Adversarial Result"/>
+                <div class="prediction-badge" id="advPred">Waiting for prediction...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Update the epsilon number display when the slider moves
+        function updateEpsilonDisplay() {
+            const val = document.getElementById("epsilon").value;
+            document.getElementById("epsilonDisplay").innerText = parseFloat(val).toFixed(2);
+        }
+
+        // Show a preview of the uploaded image immediately
+        document.getElementById("imageInput").addEventListener("change", function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                const origImgElement = document.getElementById("origImage");
+                origImgElement.src = url;
+                origImgElement.style.display = "block";
+                
+                // Show the results section partially so the user sees the preview
+                document.getElementById("resultsSection").style.display = "flex";
+                document.getElementById("statusBanner").innerText = "Ready to run attack...";
+                document.getElementById("statusBanner").style.backgroundColor = "#f1f5f9";
+                document.getElementById("statusBanner").style.color = "#475569";
+                
+                // Reset adversarial side
+                document.getElementById("advImage").src = "";
+                document.getElementById("cleanPred").innerText = "Waiting for prediction...";
+                document.getElementById("advPred").innerText = "Waiting for prediction...";
+            }
+        });
+
+        async function runAttack() {
+            const fileInput = document.getElementById("imageInput");
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert("Please upload an image first.");
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const epsilon = document.getElementById("epsilon").value;
+            const btn = document.getElementById("attackBtn");
+
+            // Set loading state
+            btn.disabled = true;
+            btn.innerText = "Running Attack...";
+
+            const formData = new FormData();
+            formData.append("file", file); 
+            try {
+                const response = await fetch(`http://127.0.0.1:8000/attack?epsilon=${epsilon}`, {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                // Update UI with results
+                document.getElementById("resultsSection").style.display = "flex";
+                
+                document.getElementById("cleanPred").innerText = "Prediction: " + data.clean_prediction;
+                document.getElementById("advPred").innerText = "Prediction: " + data.adversarial_prediction;
+                
+                document.getElementById("advImage").src = "data:image/png;base64," + data.adversarial_image;
+
+                // Update Status Banner
+                const statusBanner = document.getElementById("statusBanner");
+                if (data.attack_success) {
+                    statusBanner.innerText = "Attack Successful! Model was fooled.";
+                    statusBanner.style.backgroundColor = "#fee2e2"; // light red
+                    statusBanner.style.color = "#991b1b"; // dark red
+                } else {
+                    statusBanner.innerText = "Attack Failed. Model remained robust.";
+                    statusBanner.style.backgroundColor = "#dcfce7"; // light green
+                    statusBanner.style.color = "#166534"; // dark green
+                }
+
+            } catch (error) {
+                console.error("Error:", error);
+                alert("An error occurred while running the attack. Check the console for details.");
+            } finally {
+                // Reset button state
+                btn.disabled = false;
+                btn.innerText = "Run Attack";
+            }
+        }
+    </script>
+
+</body>
+</html>
