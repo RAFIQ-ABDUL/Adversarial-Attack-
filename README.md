@@ -1,19 +1,6 @@
 # Adversarial Attack Assessment (FGSM)
 
-This project demonstrates a Fast Gradient Sign Method (FGSM) adversarial attack on a pretrained MNIST image classification model. It includes a FastAPI backend deployed on AWS EC2 and a web frontend deployed on AWS Amplify.
-
-## Deployed URLs
-
-* **Frontend (AWS Amplify):** `[https://staging.d17i5ypwk66sej.amplifyapp.com/]`
-* **Backend API (AWS EC2 t3.micro):** `http://13.62.100.170:8000/docs`
-
-> **⚠️ IMPORTANT TESTING NOTE (Mixed Content Bypass):** > Because the frontend is hosted securely on AWS Amplify (`https://`) and the backend is hosted on a Free Tier AWS EC2 instance without an SSL certificate (`http://`), modern web browsers will automatically block the API requests by default due to standard Mixed Content security rules. 
-> 
-> **To test the live application:** You must test it on a desktop browser. In Google Chrome:
-> 1. Click the Site Information icon (the tuning-fork/padlock) on the far left of your URL address bar.
-> 2. Go to **Site Settings**.
-> 3. Scroll to **Insecure Content** and change the dropdown from "Block (default)" to **Allow**.
-> 4. Reload the page. The frontend will now successfully communicate with the EC2 backend.
+This project demonstrates a Fast Gradient Sign Method (FGSM) adversarial attack on a pretrained MNIST image classification model. It includes a FastAPI backend  and a web frontend deployed.
 
 ---
 
@@ -38,7 +25,7 @@ This project demonstrates a Fast Gradient Sign Method (FGSM) adversarial attack 
 6. Frontend Setup
    Open the frontend directory.
    Open the index.html file in any modern web browser.
-   (Note: Ensure the fetch URL in the JavaScript inside index.html points to http://127.0.0.1:8000/attack instead of the live EC2 IP for local testing).
+   (Note: Ensure the fetch URL in the JavaScript inside index.html points to http://127.0.0.1:8000/attack).
 
 Explanation of FGSM:
 
