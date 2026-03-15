@@ -240,7 +240,7 @@
             const formData = new FormData();
             formData.append("file", file); 
             try {
-                const response = await fetch(`http://13.62.100.170:8000/attack?epsilon=${epsilon}`, {
+                const response = await fetch(`http://127.0.0.1:8000/attack?epsilon=${epsilon}`, {
                     method: "POST",
                     body: formData
                 });
